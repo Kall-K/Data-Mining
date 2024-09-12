@@ -3,7 +3,6 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import seaborn as sns
-from yellowbrick.cluster import KElbowVisualizer
 from sklearn.preprocessing import StandardScaler
 # classification libraries
 from sklearn.model_selection import train_test_split
@@ -12,20 +11,20 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
 # clustering libraries
-from sklearn.cluster import KMeans
+from yellowbrick.cluster import KElbowVisualizer
+from sklearn.cluster import DBSCAN, KMeans, MeanShift, estimate_bandwidth
 
-# timestamp,back_x,back_y,back_z,thigh_x,thigh_y,thigh_z,label
 
 def insert_data():
     folder = 'harth'
     df_list = []
-    # counter = 1 
+    counter = 1 
     for f in os.listdir(folder):
         file = os.path.join(folder, f)
         df_temp = pd.read_csv(file)
-        # row, _ = df_temp.shape
-        # df_temp.insert(1, "userID", row*[counter])
-        # counter = counter + 1
+        row, _ = df_temp.shape
+        df_temp.insert(1, "userID", row*[counter])
+        counter = counter + 1
         df_list.append(df_temp)
 
     df = pd.concat(df_list, ignore_index=True)
@@ -40,21 +39,12 @@ def insert_data():
     print(NaNs_data_df)
     #3 df statistics
     df_stats = df.describe()
-    df_stats.to_csv('descride.csv', index=False)
+    df_stats.to_csv('describe.csv')
     #4 create diagrams
     # diagrams(df, df_stats) #remove comment to create diagrams
     #-------------------------------------------
 
     return df
-    # process_dataframe(df)
-
-    # hist_df = df.drop(['timestamp'], axis = 1)
-    # hist_df.hist(bins=80, layout=(3, 3), figsize=(15, 10), color='skyblue', edgecolor='black')
-    # plt.savefig('Histogram.png')
-
-    # corr_df = df.drop(['timestamp'], axis = 1)
-    # sns.heatmap(corr_df.corr(),annot=True)
-    # plt.savefig('Heatmap.png')
 
 def diagrams(df, df_stats):
     try:  
@@ -84,11 +74,7 @@ def diagrams(df, df_stats):
     transposed_df = df_stats.T
     selected_stats = transposed_df.drop(['count'], axis = 1)
     sns.heatmap(selected_stats.corr(),annot=True)
-    plt.savefig('figures/correlogram1.png')
-
-#
-#   ..............
-#
+    plt.savefig('figures/correlogram2.png')
 
 def classification(df):
     cl_dict = {1: 'RandomForestClassifier', 2: 'MLPClassifier', 3: 'GaussianNB'}
@@ -137,21 +123,51 @@ def classification(df):
     plt.legend()
     plt.savefig('Classification_results.png')
 
-
 def clustering(df):
+    X = process_dataframe(df)
 
+    def kmeans():
+        kmeans = KMeans(n_init=10)
+        vis = KElbowVisualizer(kmeans,numeric_only=None)
+        vis.fit(X)
+        vis.show(outpath="kmeans_kelbow.png")
+        best_k = vis.elbow_value_
+        print(f"The optimal number of clusters is: {best_k}")
+
+        kmeans = KMeans(n_clusters=best_k)
+        kmeans.fit(X)
+        print('labels: ',kmeans.labels_)
     
+    def meanshift():
+        bandwidth = estimate_bandwidth(X, quantile=0.2, n_samples=1000)
+        ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+        ms.fit(X)
+        labels = ms.labels_
+        labels_unique = np.unique(labels)
+        n_clusters_ = len(labels_unique)
+        print(labels)
+        print("Number of estimated clusters: ", n_clusters_)
 
-    X = df
-    kmeans = KMeans(n_clusters=12)
-    kmeans.fit(X)
+    def dbscan():
+        db=DBSCAN(eps=0.1,min_samples=5,metric='euclidean')
+        model=db.fit(X)
+        label=model.labels_
+        print(label)
+        
+        n_clusters=len(set(label))- (1 if -1 in label else 0)
+        print('No of clusters:',n_clusters)
 
-    labels = kmeans.labels_
-    print(labels)
+    def select_clusterer(option):
+        if option == 1:
+            kmeans()
+        elif option == 2:
+            meanshift()
+        else:
+            raise ValueError("option values are : 1 or 2")
+    dbscan()
+    for i in range(1,3):
+        select_clusterer(i)
 
-    centroids = kmeans.cluster_centers_
-    # print(centroids)
-    
 def process_dataframe(df):
     df_list = []
     df = df.drop(columns=['timestamp', 'label'])
@@ -168,45 +184,17 @@ def process_dataframe(df):
  
         df_temp = pd.concat([m_df.to_frame().transpose(), std_df.to_frame().transpose()], axis=1, join="inner") 
 
-        # print(df_temp.head())
         df_list.append(df_temp)
 
     df = pd.concat(df_list, ignore_index=True)
-    print(df.head(23))
-
     X = df.drop(columns=['userID'])
-    # print(X)
-    # distortion = []
-    # for k in range(2,10):
-    #     kmeans = KMeans(n_clusters=k,n_init=10)
-    #     kmeans.fit(X)
-    #     distortion.append(kmeans.inertia_)
-
-    # plt.plot(range(2, 10), distortion, marker = 'x' )
-    # plt.xlabel('Number of clusters')
-    # plt.ylabel('SSE')
-    # plt.show()
-
-
-    kmeans = KMeans(n_clusters=4)
-    sil_vis = KElbowVisualizer(kmeans, numeric_only=None)
-
-    sil_vis.fit(X)
-    sil_vis.show()
-    print("1:",kmeans.labels_)
 
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    kmeans = KMeans(n_init=10)
-    sil_vis = KElbowVisualizer(kmeans,numeric_only=None)
-    sil_vis.fit(X_scaled)
-    sil_vis.show()
-    print("2:",kmeans.labels_)
-    # return df
+    return X
 
 if __name__ == "__main__":
-    # df = insert_data()
-    df = pd.read_csv('harth/S006.csv')
-    classification(df)
+    df = insert_data()
+    # df = pd.read_csv('harth/S006.csv')
 
-    # clustering()
+    classification(df)
+    # clustering(df)
