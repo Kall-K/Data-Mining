@@ -72,7 +72,7 @@ def insert_data():
     return df
     
 
-def classification(df, option):
+def classification(df, option=None):
     cl_dict = {1: 'RandomForestClassifier', 2: 'MLPClassifier', 3: 'GaussianNB'}
 
     def select_classifier(option=None):
