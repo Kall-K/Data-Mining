@@ -119,6 +119,7 @@ def classification(df, option=None):
         plt.ylabel("Accuracy")
         plt.legend()
         plt.savefig('figures/Classification_results.png')
+        plt.close()
     else:
         run_classification(X,Y,option)
 
