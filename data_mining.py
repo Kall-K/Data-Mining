@@ -91,6 +91,7 @@ def classification(df, option=None):
         #training
         model = select_classifier(classifier)
         model.fit(X_train,y_train)
+        #testing
         predictions = model.predict(X_test)
         print("\n---------------------------------------------------------------------")
         print(f"Classifier {cl_dict[classifier]} yeilds training accuracy of {model.score(X_train,y_train)}\nwith a testing accuracy of {accuracy_score(y_test, predictions)}")
@@ -137,7 +138,6 @@ def clustering(X, option=None):
         print(f'Silhouette Score: {silhouette_score(X, labels)}')
         print(f'Labels: {labels}')
         print(f'Number of clusters: {best_k}')
-
     
     def meanshift():
         labels = MeanShift().fit(X).labels_
